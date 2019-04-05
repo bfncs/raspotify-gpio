@@ -1,13 +1,15 @@
-import express, { Application } from "express";
-// import rpio from "rpio";
+import { setupGpio } from "./gpio";
 
-const { PORT = 8080 } = process.env;
-const app: Application = express();
+const handleFirst = () => {
+  console.log("first");
+};
 
-app.get("/", (_, res) => {
-  res.send("Ok.");
-});
+const handleSecond = () => {
+  console.log("second");
+};
 
-app.listen(PORT, () => {
-  console.log(`App listening on port ${PORT}.`);
-});
+const handleThird = () => {
+  console.log("third");
+};
+
+setupGpio(new Map([[11, handleFirst], [12, handleSecond], [13, handleThird]]));
