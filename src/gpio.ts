@@ -1,7 +1,7 @@
 import rpio from "rpio";
 import { debounce } from "./utils/debounce";
 
-export function setupGpio(buttonMap: Map<number, () => void>) {
+export default (buttonMap: Map<number, () => void>) => {
   try {
     buttonMap.forEach((action, pin) => {
       rpio.open(pin, rpio.INPUT, rpio.PULL_UP);
@@ -20,4 +20,4 @@ export function setupGpio(buttonMap: Map<number, () => void>) {
   } finally {
     buttonMap.forEach((_, pin) => rpio.close(pin));
   }
-}
+};
