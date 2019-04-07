@@ -1,44 +1,18 @@
-import express, { Application, Request, Response } from "express";
+import express, { Application, Request } from "express";
 import passport from "passport";
-import { Strategy as SpotifyStrategy } from "passport-spotify";
 import setupGpio from "./gpio";
-import { SpotifyUser } from "./models";
-import {
-  deleteSpotifyUser,
-  getSpotifyUser,
-  setSpotifyUser
-} from "./persistence";
+import { getSpotifyUser } from "./persistence";
 import SpotifyClient from "./SpotifyClient";
+import config from "./config";
+import { authRouter } from "./auth";
 
-console.log("Starting raspotify-gpio…");
-
-const { PORT = 8080, CLIENT_ID, CLIENT_SECRET, CALLBACK_URL } = process.env;
-
-passport.use(
-  new SpotifyStrategy(
-    {
-      clientID: String(CLIENT_ID),
-      clientSecret: String(CLIENT_SECRET),
-      callbackURL: String(CALLBACK_URL)
-    },
-    (accessToken, refreshToken, expiresIn, profile, done) => {
-      console.log("verify", { accessToken, refreshToken, expiresIn, profile });
-      const { id } = profile;
-      const user: SpotifyUser = {
-        id,
-        accessToken,
-        refreshToken
-      };
-      setSpotifyUser(user);
-      done(null, user);
-    }
-  )
-);
+console.log("Starting raspotify-gpio…", config);
 
 const spotify = new SpotifyClient();
 
 const app: Application = express();
 app.use(passport.initialize());
+app.use("/auth", authRouter);
 
 app.get("/", async (req: Request, res) => {
   const user = getSpotifyUser();
@@ -61,26 +35,6 @@ ${JSON.stringify(devices, null, 2)}
   } catch (e) {
     console.error(e);
   }
-});
-
-app.get(
-  "/auth/spotify",
-  passport.authenticate("spotify", {
-    scope: ["user-read-playback-state", "user-modify-playback-state"]
-  })
-);
-
-app.get(
-  "/auth/spotify/callback",
-  passport.authenticate("spotify", { failureFlash: true, session: false }),
-  (_, res: Response) => {
-    res.redirect("/");
-  }
-);
-
-app.post("/auth/spotify/delete", (_, res: Response) => {
-  deleteSpotifyUser();
-  res.redirect("/");
 });
 
 app.post("/play", async (req, res) => {
@@ -144,8 +98,8 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  app.listen(PORT, () => {
-    console.log(`Listening on port ${PORT}.`);
+  app.listen(config.port, () => {
+    console.log(`Listening on port ${config.port}.`);
   });
 
   try {
