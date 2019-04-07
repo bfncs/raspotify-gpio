@@ -1,69 +1,18 @@
-import axios from "axios";
 import express, { Application, Request, Response } from "express";
 import passport from "passport";
 import { Strategy as SpotifyStrategy } from "passport-spotify";
 import setupGpio from "./gpio";
-import { SpotifyDevice, SpotifyUser } from "./models";
+import { SpotifyUser } from "./models";
 import {
   deleteSpotifyUser,
   getSpotifyUser,
   setSpotifyUser
 } from "./persistence";
+import SpotifyClient from "./SpotifyClient";
 
 console.log("Starting raspotify-gpio…");
 
 const { PORT = 8080, CLIENT_ID, CLIENT_SECRET, CALLBACK_URL } = process.env;
-
-const getDevices = async (accessToken: string): Promise<SpotifyDevice[]> => {
-  const res = await axios.get<{ devices: SpotifyDevice[] }>(
-    "https://api.spotify.com/v1/me/player/devices",
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      }
-    }
-  );
-  return res.data.devices;
-};
-
-const play = async (
-  accessToken: string,
-  device: SpotifyDevice
-): Promise<void> => {
-  const res = await axios.put(
-    "https://api.spotify.com/v1/me/player/play",
-    { context_uri: "spotify:album:5ht7ItJgpBH7W6vJ5BqpPr" },
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      },
-      params: {
-        device_id: device.id
-      }
-    }
-  );
-  console.log(res);
-};
-
-const pause = async (
-  accessToken: string,
-  device: SpotifyDevice
-): Promise<void> => {
-  console.log("pause", { accessToken, device });
-  const res = await axios.put(
-    "https://api.spotify.com/v1/me/player/pause",
-    null,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      },
-      params: {
-        device_id: device.id
-      }
-    }
-  );
-  console.log(res);
-};
 
 passport.use(
   new SpotifyStrategy(
@@ -86,6 +35,8 @@ passport.use(
   )
 );
 
+const spotify = new SpotifyClient();
+
 const app: Application = express();
 app.use(passport.initialize());
 
@@ -97,7 +48,7 @@ app.get("/", async (req: Request, res) => {
   }
 
   try {
-    const devices = await getDevices(user.accessToken);
+    const devices = await spotify.getDevices(user.accessToken);
     res.send(`
 <pre><code>
 ${JSON.stringify(user, null, 2)}
@@ -140,7 +91,7 @@ app.post("/play", async (req, res) => {
   }
 
   try {
-    const devices = await getDevices(user.accessToken);
+    const devices = await spotify.getDevices(user.accessToken);
     const raspotifyDevice = devices.find(device =>
       device.name.startsWith("raspotify")
     );
@@ -150,7 +101,7 @@ app.post("/play", async (req, res) => {
       return;
     }
 
-    await play(user.accessToken, raspotifyDevice);
+    await spotify.play(user.accessToken, raspotifyDevice);
 
     res.redirect("/");
   } catch (e) {
@@ -167,7 +118,7 @@ app.post("/pause", async (req, res) => {
   }
 
   try {
-    const devices = await getDevices(user.accessToken);
+    const devices = await spotify.getDevices(user.accessToken);
     const raspotifyDevice = devices.find(device =>
       device.name.startsWith("raspotify")
     );
@@ -177,7 +128,7 @@ app.post("/pause", async (req, res) => {
       return;
     }
 
-    await pause(user.accessToken, raspotifyDevice);
+    await spotify.pause(user.accessToken, raspotifyDevice);
     res.redirect("/");
   } catch (e) {
     console.error(e);
