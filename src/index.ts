@@ -1,30 +1,21 @@
 import axios from "axios";
 import express, { Application, Request, Response } from "express";
+import passport from "passport";
 import { Strategy as SpotifyStrategy } from "passport-spotify";
 import setupGpio from "./gpio";
-import { SpotifyUser } from "./models";
+import { SpotifyDevice, SpotifyUser } from "./models";
 import {
-  deleteSpotifyUser, getSpotifyUser,
+  deleteSpotifyUser,
+  getSpotifyUser,
   setSpotifyUser
 } from "./persistence";
-import passport from "passport";
 
 console.log("Starting raspotify-gpio…");
 
 const { PORT = 8080, CLIENT_ID, CLIENT_SECRET, CALLBACK_URL } = process.env;
 
-interface Device {
-  id: string;
-  is_active: boolean;
-  is_private_session: boolean;
-  is_restricted: boolean;
-  name: string;
-  type: string;
-  volume_percent: number;
-}
-
-const getDevices = async (accessToken: string): Promise<Device[]> => {
-  const res = await axios.get<{ devices: Device[] }>(
+const getDevices = async (accessToken: string): Promise<SpotifyDevice[]> => {
+  const res = await axios.get<{ devices: SpotifyDevice[] }>(
     "https://api.spotify.com/v1/me/player/devices",
     {
       headers: {
@@ -35,7 +26,10 @@ const getDevices = async (accessToken: string): Promise<Device[]> => {
   return res.data.devices;
 };
 
-const play = async (accessToken: string, device: Device): Promise<void> => {
+const play = async (
+  accessToken: string,
+  device: SpotifyDevice
+): Promise<void> => {
   const res = await axios.put(
     "https://api.spotify.com/v1/me/player/play",
     { context_uri: "spotify:album:5ht7ItJgpBH7W6vJ5BqpPr" },
@@ -51,7 +45,10 @@ const play = async (accessToken: string, device: Device): Promise<void> => {
   console.log(res);
 };
 
-const pause = async (accessToken: string, device: Device): Promise<void> => {
+const pause = async (
+  accessToken: string,
+  device: SpotifyDevice
+): Promise<void> => {
   console.log("pause", { accessToken, device });
   const res = await axios.put(
     "https://api.spotify.com/v1/me/player/pause",
@@ -130,14 +127,10 @@ app.get(
   }
 );
 
-
-app.post(
-  "/auth/spotify/delete",
-  (_, res: Response) => {
-    deleteSpotifyUser();
-    res.redirect("/");
-  }
-);
+app.post("/auth/spotify/delete", (_, res: Response) => {
+  deleteSpotifyUser();
+  res.redirect("/");
+});
 
 app.post("/play", async (req, res) => {
   const user = getSpotifyUser();

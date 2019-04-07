@@ -1,1 +1,1 @@
-export * from "./SpotifyUser";
+export * from "./spotify";
