@@ -1,9 +1,13 @@
 import axios from "axios";
 import express, { Application, Request, Response } from "express";
-import session from "express-session";
-import passport from "passport";
 import { Strategy as SpotifyStrategy } from "passport-spotify";
 import setupGpio from "./gpio";
+import { SpotifyUser } from "./models";
+import {
+  deleteSpotifyUser, getSpotifyUser,
+  setSpotifyUser
+} from "./persistence";
+import passport from "passport";
 
 console.log("Starting raspotify-gpio…");
 
@@ -64,25 +68,6 @@ const pause = async (accessToken: string, device: Device): Promise<void> => {
   console.log(res);
 };
 
-interface User {
-  id: string;
-  accessToken: string;
-  refreshToken: string;
-}
-
-let currentUser: User | null = null;
-
-passport.serializeUser<User, string>((user, done) => {
-  done(null, user.id);
-});
-
-passport.deserializeUser<User, string>((id, done) => {
-  if (currentUser && currentUser.id === id) {
-    done(null, currentUser);
-  } else {
-    done(new Error(`Unable to find user with id: ${id}`));
-  }
-});
 passport.use(
   new SpotifyStrategy(
     {
@@ -93,24 +78,22 @@ passport.use(
     (accessToken, refreshToken, expiresIn, profile, done) => {
       console.log("verify", { accessToken, refreshToken, expiresIn, profile });
       const { id } = profile;
-      const user = {
+      const user: SpotifyUser = {
         id,
         accessToken,
         refreshToken
       };
-      currentUser = user;
+      setSpotifyUser(user);
       done(null, user);
     }
   )
 );
 
 const app: Application = express();
-app.use(session({ secret: "cats" }));
 app.use(passport.initialize());
-app.use(passport.session());
 
 app.get("/", async (req: Request, res) => {
-  const { user } = req;
+  const user = getSpotifyUser();
   if (!user) {
     res.send('<a href="/auth/spotify" />Login with spotify</a>');
     return;
@@ -125,6 +108,7 @@ ${JSON.stringify(devices, null, 2)}
 </code></pre>
 <form action="/play" method="post"><button type="submit">Play</button></form>
 <form action="/pause" method="post"><button type="submit">Pause</button></form>
+<form action="/auth/spotify/delete" method="post"><button type="submit">Log out</button></form>
 `);
   } catch (e) {
     console.error(e);
@@ -140,20 +124,30 @@ app.get(
 
 app.get(
   "/auth/spotify/callback",
-  passport.authenticate("spotify", { failureFlash: true }),
+  passport.authenticate("spotify", { failureFlash: true, session: false }),
   (_, res: Response) => {
     res.redirect("/");
   }
 );
 
+
+app.post(
+  "/auth/spotify/delete",
+  (_, res: Response) => {
+    deleteSpotifyUser();
+    res.redirect("/");
+  }
+);
+
 app.post("/play", async (req, res) => {
-  if (!currentUser) {
+  const user = getSpotifyUser();
+  if (!user) {
     res.status(500).send("not logged in");
     return;
   }
 
   try {
-    const devices = await getDevices(currentUser.accessToken);
+    const devices = await getDevices(user.accessToken);
     const raspotifyDevice = devices.find(device =>
       device.name.startsWith("raspotify")
     );
@@ -163,7 +157,7 @@ app.post("/play", async (req, res) => {
       return;
     }
 
-    await play(currentUser.accessToken, raspotifyDevice);
+    await play(user.accessToken, raspotifyDevice);
 
     res.redirect("/");
   } catch (e) {
@@ -173,13 +167,14 @@ app.post("/play", async (req, res) => {
 });
 
 app.post("/pause", async (req, res) => {
-  if (!currentUser) {
+  const user = getSpotifyUser();
+  if (!user) {
     res.status(500).send("not logged in");
     return;
   }
 
   try {
-    const devices = await getDevices(currentUser.accessToken);
+    const devices = await getDevices(user.accessToken);
     const raspotifyDevice = devices.find(device =>
       device.name.startsWith("raspotify")
     );
@@ -189,7 +184,7 @@ app.post("/pause", async (req, res) => {
       return;
     }
 
-    await pause(currentUser.accessToken, raspotifyDevice);
+    await pause(user.accessToken, raspotifyDevice);
     res.redirect("/");
   } catch (e) {
     console.error(e);
