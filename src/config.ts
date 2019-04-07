@@ -15,7 +15,7 @@ const config: Config = {
     clientID: CLIENT_ID || "",
     clientSecret: CLIENT_SECRET || "",
     callbackURL: CALLBACK_URL || ""
-  },
+  }
 };
 
 export default config;
