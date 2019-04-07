@@ -42,6 +42,15 @@ export default class SpotifyClient {
     return res.data.devices;
   }
 
+  public async getDevice(predicate: (device: SpotifyDevice) => boolean): Promise<SpotifyDevice> {
+    const devices = await this.getDevices();
+    const device = devices.find(predicate);
+    if (!device) {
+      throw new Error("unable to find device");
+    }
+    return device;
+  }
+
   public async play(device: SpotifyDevice, spotifyUri?: string): Promise<void> {
     console.log("play", { spotifyUri, device });
     const res = await this.handleUnauthorized(() =>

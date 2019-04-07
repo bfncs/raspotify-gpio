@@ -5,6 +5,7 @@ import config from "./config";
 import setupGpio from "./gpio";
 import { getSpotifyUser, setSpotifyAccessToken } from "./persistence";
 import SpotifyClient, { refreshAccessToken } from "./SpotifyClient";
+import { SpotifyDevice } from "./models/spotify";
 
 console.log("Starting raspotify-gpio…", config);
 
@@ -18,33 +19,7 @@ const spotify = new SpotifyClient(
   }
 );
 
-const play = (spotifyUrl: string) => async (): Promise<void> => {
-  console.log(`Playing ${spotifyUrl}`);
-
-  const devices = await spotify.getDevices();
-  const raspotifyDevice = devices.find(device =>
-    device.name.startsWith("raspotify")
-  );
-
-  if (!raspotifyDevice) {
-    throw new Error("no raspotify device found");
-  }
-
-  await spotify.play(raspotifyDevice, spotifyUrl);
-};
-
-const pause = () => async (): Promise<void> => {
-  const devices = await spotify.getDevices();
-  const raspotifyDevice = devices.find(device =>
-    device.name.startsWith("raspotify")
-  );
-
-  if (!raspotifyDevice) {
-    throw new Error("no raspotify device found");
-  }
-
-  await spotify.pause(raspotifyDevice);
-};
+const isRaspotifyDevice = (device: SpotifyDevice) => device.name.startsWith("raspotify");
 
 const app: Application = express();
 app.use(passport.initialize());
@@ -71,7 +46,7 @@ ${JSON.stringify(devices, null, 2)}
 
 app.post("/play", async (req, res) => {
   try {
-    await play("spotify:album:5ht7ItJgpBH7W6vJ5BqpPr")();
+    await spotify.play(await spotify.getDevice(isRaspotifyDevice), "spotify:album:5ht7ItJgpBH7W6vJ5BqpPr");
     res.redirect("/");
   } catch (e) {
     console.error(e);
@@ -81,7 +56,7 @@ app.post("/play", async (req, res) => {
 
 app.post("/pause", async (req, res) => {
   try {
-    pause()();
+    await spotify.pause(await spotify.getDevice(isRaspotifyDevice))
     res.redirect("/");
   } catch (e) {
     console.error(e);
@@ -94,11 +69,20 @@ app.post("/pause", async (req, res) => {
     console.log(`Listening on port ${config.port}.`);
   });
 
+  const actions = {
+    play: (spotifyUrl: string) => async (): Promise<void> => {
+    await spotify.play(await spotify.getDevice(isRaspotifyDevice), spotifyUrl);
+  },
+    pause: () => async (): Promise<void> => {
+    await spotify.pause(await spotify.getDevice(isRaspotifyDevice));
+  }
+  };
+
   try {
     setupGpio(
       new Map([
-        [11, play("spotify:album:5ht7ItJgpBH7W6vJ5BqpPr")],
-        [12, pause()]
+        [11, actions.play("spotify:album:5ht7ItJgpBH7W6vJ5BqpPr")],
+        [12, actions.pause()]
       ])
     );
   } catch (e) {
