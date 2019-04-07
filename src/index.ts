@@ -3,9 +3,9 @@ import passport from "passport";
 import { authRouter } from "./auth";
 import config from "./config";
 import setupGpio from "./gpio";
+import { SpotifyDevice } from "./models/spotify";
 import { getSpotifyUser, setSpotifyAccessToken } from "./persistence";
 import SpotifyClient, { refreshAccessToken } from "./SpotifyClient";
-import { SpotifyDevice } from "./models/spotify";
 
 console.log("Starting raspotify-gpio…", config);
 
@@ -19,7 +19,8 @@ const spotify = new SpotifyClient(
   }
 );
 
-const isRaspotifyDevice = (device: SpotifyDevice) => device.name.startsWith("raspotify");
+const isRaspotifyDevice = (device: SpotifyDevice) =>
+  device.name.startsWith("raspotify");
 
 const app: Application = express();
 app.use(passport.initialize());
@@ -46,7 +47,10 @@ ${JSON.stringify(devices, null, 2)}
 
 app.post("/play", async (req, res) => {
   try {
-    await spotify.play(await spotify.getDevice(isRaspotifyDevice), "spotify:album:5ht7ItJgpBH7W6vJ5BqpPr");
+    await spotify.play(
+      await spotify.getDevice(isRaspotifyDevice),
+      "spotify:album:5ht7ItJgpBH7W6vJ5BqpPr"
+    );
     res.redirect("/");
   } catch (e) {
     console.error(e);
@@ -56,7 +60,7 @@ app.post("/play", async (req, res) => {
 
 app.post("/pause", async (req, res) => {
   try {
-    await spotify.pause(await spotify.getDevice(isRaspotifyDevice))
+    await spotify.pause(await spotify.getDevice(isRaspotifyDevice));
     res.redirect("/");
   } catch (e) {
     console.error(e);
@@ -71,11 +75,14 @@ app.post("/pause", async (req, res) => {
 
   const actions = {
     play: (spotifyUrl: string) => async (): Promise<void> => {
-    await spotify.play(await spotify.getDevice(isRaspotifyDevice), spotifyUrl);
-  },
+      await spotify.play(
+        await spotify.getDevice(isRaspotifyDevice),
+        spotifyUrl
+      );
+    },
     pause: () => async (): Promise<void> => {
-    await spotify.pause(await spotify.getDevice(isRaspotifyDevice));
-  }
+      await spotify.pause(await spotify.getDevice(isRaspotifyDevice));
+    }
   };
 
   try {

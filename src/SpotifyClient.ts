@@ -42,7 +42,9 @@ export default class SpotifyClient {
     return res.data.devices;
   }
 
-  public async getDevice(predicate: (device: SpotifyDevice) => boolean): Promise<SpotifyDevice> {
+  public async getDevice(
+    predicate: (device: SpotifyDevice) => boolean
+  ): Promise<SpotifyDevice> {
     const devices = await this.getDevices();
     const device = devices.find(predicate);
     if (!device) {
