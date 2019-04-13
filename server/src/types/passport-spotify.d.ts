@@ -2,7 +2,6 @@ declare module "passport-spotify" {
   import { Request } from "express";
   import { Strategy as PassportStrategy } from "passport";
   export class Strategy implements PassportStrategy {
-    authenticate(req: Request, options?: any): any;
     constructor(
       params: { clientID: string; clientSecret: string; callbackURL: string },
       verify: (
@@ -13,5 +12,6 @@ declare module "passport-spotify" {
         done: (err: Error | null, user: any | null) => void
       ) => void
     );
+    public authenticate(req: Request, options?: any): any;
   }
 }

@@ -10,7 +10,7 @@ interface Config {
 const { PORT, CLIENT_ID, CLIENT_SECRET, CALLBACK_URL } = process.env;
 
 const config: Config = {
-  port: parseInt(`${PORT}`, 10) || 8080,
+  port: parseInt(`${PORT}`, 10) || 3001,
   spotify: {
     clientID: CLIENT_ID || "",
     clientSecret: CLIENT_SECRET || "",
